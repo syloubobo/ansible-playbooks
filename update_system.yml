@@ -1,0 +1,10 @@
+---
+- name: Maintenance et mise a jour globale du parc Linux
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Mise a jour du cache APT et mise a jour securisee des paquets
+      ansible.builtin.apt:
+        update_cache: yes
+        upgrade: safe
