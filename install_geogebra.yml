@@ -1,0 +1,22 @@
+---
+- name: Deploiement automatise de GeoGebra
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Telechargement du paquet officiel .deb de GeoGebra
+      get_url:
+        url: https://download.geogebra.org/installers/6.0/GeoGebra-Linux-Installer-with-Java-6-0-849-0.deb
+        dest: /tmp/geogebra.deb
+        mode: '0644'
+
+    - name: Installation du paquet GeoGebra avec apt
+      apt:
+        deb: /tmp/geogebra.deb
+        state: present
+        update_cache: yes
+
+    - name: Nettoyage du fichier d'installation temporaire
+      file:
+        path: /tmp/geogebra.deb
+        state: absent
