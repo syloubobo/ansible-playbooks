@@ -1,0 +1,29 @@
+---
+- name: Deploiement automatise du navigateur Brave
+  hosts: all
+  become: true  # Force l'utilisation de sudo pour toutes les taches
+
+  tasks:
+    - name: Installation des dependances requises (curl)
+      apt:
+        name: curl
+        state: present
+        update_cache: yes
+
+    - name: Telechargement et ajout de la cle GPG officielle de Brave
+      get_url:
+        url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+        dest: /usr/share/keyrings/brave-browser-archive-keyring.gpg
+        mode: '0644'
+
+    - name: Ajout du depot officiel Brave Browser dans les sources APT
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main"
+        state: present
+        filename: brave-browser-release
+
+    - name: Mise a jour du cache et installation du paquet brave-browser
+      apt:
+        name: brave-browser
+        state: latest
+        update_cache: yes
