@@ -1,22 +1,23 @@
 ---
-- name: Deploiement automatise de GeoGebra
+- name: Deploiement automatise de GeoGebra via depot officiel
   hosts: all
   become: true
 
   tasks:
-    - name: Telechargement du paquet officiel .deb de GeoGebra
+    - name: Telechargement et ajout de la cle GPG officielle de GeoGebra
       get_url:
-        url: https://download.geogebra.org/installers/6.0/GeoGebra-Linux-Installer-with-Java-6-0-849-0.deb
-        dest: /tmp/geogebra.deb
+        url: https://download.geogebra.org/downloads/geogebra-key.gpg
+        dest: /usr/share/keyrings/geogebra-keyring.gpg
         mode: '0644'
 
-    - name: Installation du paquet GeoGebra avec apt
-      apt:
-        deb: /tmp/geogebra.deb
+    - name: Ajout du depot officiel GeoGebra dans les sources APT
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/geogebra-keyring.gpg] http://vps.geogebra.org/deb/ stable main"
         state: present
-        update_cache: yes
+        filename: geogebra
 
-    - name: Nettoyage du fichier d'installation temporaire
-      file:
-        path: /tmp/geogebra.deb
-        state: absent
+    - name: Mise a jour du cache et installation de GeoGebra 6
+      apt:
+        name: geogebra6
+        state: latest
+        update_cache: yes
