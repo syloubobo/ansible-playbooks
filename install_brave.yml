@@ -1,7 +1,7 @@
 ---
 - name: Deploiement automatise du navigateur Brave
   hosts: all
-  become: true  # Force l'utilisation de sudo pour toutes les taches
+  become: true
 
   tasks:
     - name: Installation des dependances requises (curl)
