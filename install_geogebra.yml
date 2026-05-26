@@ -29,12 +29,21 @@
         remote_src: yes
       when: download_result is succeeded
 
+    - name: Chercher l'executable GeoGebra
+      ansible.builtin.shell: find /opt -name "geogebra" -type f -executable 2>/dev/null | head -1
+      register: geogebra_path
+      when: download_result is succeeded
+      changed_when: false
+
     - name: Creation du lien symbolique pour acces facile
       ansible.builtin.file:
-        src: /opt/GeoGebra/geogebra
+        src: "{{ geogebra_path.stdout }}"
         dest: /usr/local/bin/geogebra
         state: link
-      when: download_result is succeeded
+        force: yes
+      when: 
+        - download_result is succeeded
+        - geogebra_path.stdout != ""
 
     - name: Nettoyage du fichier temporaire
       ansible.builtin.file:
