@@ -4,20 +4,27 @@
   become: true
 
   tasks:
-    - name: Telechargement du paquet officiel GeoGebra 6
-      get_url:
-        url: https://download.geogebra.org/installers/6.0/GeoGebra-Linux-Installer-with-Java.deb
-        dest: /tmp/geogebra6.deb
-        mode: '0644'
-        validate_certs: no  # Evite les blocages de certificats SSL
-
-    - name: Installation du paquet avec gestion des dependances
-      apt:
-        deb: /tmp/geogebra6.deb
+    - name: Installer les dependances requises
+      ansible.builtin.apt:
+        name:
+          - default-jre
+          - wget
         state: present
         update_cache: yes
 
+    - name: Telechargement du paquet officiel GeoGebra 6
+      ansible.builtin.get_url:
+        url: https://download.geogebra.org/installers/6.0/GeoGebra-Linux-Installer-with-Java.deb
+        dest: /tmp/geogebra6.deb
+        mode: '0644'
+        validate_certs: true
+
+    - name: Installation du paquet avec gestion des dependances
+      ansible.builtin.apt:
+        deb: /tmp/geogebra6.deb
+        state: present
+
     - name: Nettoyage du fichier temporaire
-      file:
+      ansible.builtin.file:
         path: /tmp/geogebra6.deb
         state: absent
