@@ -44,21 +44,13 @@
         mode: '0755'
       loop: "{{ home_dirs.files }}"
 
-    - name: Creer le raccourci Brave sur le bureau
-      shell: |
-        cat > {{ item.path }}/Desktop/brave-browser.desktop << 'EOF'
-        [Desktop Entry]
-        Version=1.0
-        Type=Application
-        Name=Brave Browser
-        Comment=Accedez a Internet avec Brave
-        Exec=/usr/bin/brave-browser %U
-        Icon=brave-browser
-        Terminal=false
-        Categories=Network;WebBrowser;
-        MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
-        StartupNotify=true
-        EOF
-        chown {{ item.path | basename }}:{{ item.path | basename }} {{ item.path }}/Desktop/brave-browser.desktop
-        chmod 755 {{ item.path }}/Desktop/brave-browser.desktop
+    - name: Copier le fichier .desktop de Brave vers le bureau
+      copy:
+        src: /usr/share/applications/brave-browser.desktop
+        dest: "{{ item.path }}/Desktop/brave-browser.desktop"
+        remote_src: yes
+        owner: "{{ item.path | basename }}"
+        group: "{{ item.path | basename }}"
+        mode: '0755'
       loop: "{{ home_dirs.files }}"
+      ignore_errors: yes
