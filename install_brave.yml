@@ -28,48 +28,37 @@
         state: latest
         update_cache: yes
 
+    - name: Trouver tous les utilisateurs
+      find:
+        paths: /home
+        file_type: directory
+        recurse: no
+      register: home_dirs
+
+    - name: Creer le dossier Desktop pour chaque utilisateur
+      file:
+        path: "{{ item.path }}/Desktop"
+        state: directory
+        owner: "{{ item.path | basename }}"
+        group: "{{ item.path | basename }}"
+        mode: '0755'
+      loop: "{{ home_dirs.files }}"
+
     - name: Creer le raccourci Brave sur le bureau
-      block:
-        - name: Trouver tous les utilisateurs
-          find:
-            paths: /home
-            file_type: directory
-            recurse: no
-          register: home_dirs
-
-        - name: Creer le dossier Desktop pour chaque utilisateur
-          file:
-            path: "{{ item.path }}/Desktop"
-            state: directory
-            owner: "{{ item.path | basename }}"
-            group: "{{ item.path | basename }}"
-            mode: '0755'
-          loop: "{{ home_dirs.files }}"
-
-        - name: Creer le fichier .desktop Brave sur le bureau
-          file:
-            path: "{{ item.path }}/Desktop/brave-browser.desktop"
-            state: touch
-            owner: "{{ item.path | basename }}"
-            group: "{{ item.path | basename }}"
-            mode: '0755'
-          loop: "{{ home_dirs.files }}"
-
-        - name: Ajouter les lignes du fichier .desktop
-          lineinfile:
-            path: "{{ item[0].path }}/Desktop/brave-browser.desktop"
-            line: "{{ item[1] }}"
-            create: yes
-          with_nested:
-            - "{{ home_dirs.files }}"
-            - - '[Desktop Entry]'
-              - 'Version=1.0'
-              - 'Type=Application'
-              - 'Name=Brave Browser'
-              - 'Comment=Accedez a Internet avec Brave'
-              - 'Exec=/usr/bin/brave-browser %U'
-              - 'Icon=brave-browser'
-              - 'Terminal=false'
-              - 'Categories=Network;WebBrowser;'
-              - 'MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;'
-              - 'StartupNotify=true'
+      shell: |
+        cat > {{ item.path }}/Desktop/brave-browser.desktop << 'EOF'
+        [Desktop Entry]
+        Version=1.0
+        Type=Application
+        Name=Brave Browser
+        Comment=Accedez a Internet avec Brave
+        Exec=/usr/bin/brave-browser %U
+        Icon=brave-browser
+        Terminal=false
+        Categories=Network;WebBrowser;
+        MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+        StartupNotify=true
+        EOF
+        chown {{ item.path | basename }}:{{ item.path | basename }} {{ item.path }}/Desktop/brave-browser.desktop
+        chmod 755 {{ item.path }}/Desktop/brave-browser.desktop
+      loop: "{{ home_dirs.files }}"
