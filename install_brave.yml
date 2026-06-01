@@ -28,41 +28,64 @@
         state: latest
         update_cache: yes
 
-    - name: Creation du raccourci Brave sur le bureau de tous les utilisateurs
-      block:
-        - name: Obtenir la liste des utilisateurs avec home directory
-          shell: "getent passwd | grep '/home' | cut -d: -f1,6"
-          register: users_list
-          changed_when: false
+    - name: Obtenir la liste des utilisateurs avec home directory
+      shell: "getent passwd | grep '/home' | cut -d: -f1,6"
+      register: users_list
+      changed_when: false
 
-        - name: Creer le dossier Desktop s'il n'existe pas
-          file:
-            path: "{{ item.split(':')[1] }}/Desktop"
-            state: directory
-            owner: "{{ item.split(':')[0] }}"
-            group: "{{ item.split(':')[0] }}"
-            mode: '0755'
-          loop: "{{ users_list.stdout_lines }}"
-          when: users_list.stdout_lines | length > 0
+    - name: Creer le dossier Desktop pour chaque utilisateur
+      file:
+        path: "{{ item.split(':')[1] }}/Desktop"
+        state: directory
+        owner: "{{ item.split(':')[0] }}"
+        group: "{{ item.split(':')[0] }}"
+        mode: '0755'
+      loop: "{{ users_list.stdout_lines }}"
+      when: users_list.stdout_lines | length > 0
 
-        - name: Creer le raccourci Brave sur le bureau
-          copy:
-            content: |
-              [Desktop Entry]
-              Version=1.0
-              Type=Application
-              Name=Brave Browser
-              Comment=Accedez a Internet avec Brave
-              Exec=/usr/bin/brave-browser %U
-              Icon=brave-browser
-              Terminal=false
-              Categories=Network;WebBrowser;
-              MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;application/x-xpinstall;
-              StartupNotify=true
-              X-Desktop-File-Install-Version=0.24
-            dest: "{{ item.split(':')[1] }}/Desktop/brave-browser.desktop"
-            owner: "{{ item.split(':')[0] }}"
-            group: "{{ item.split(':')[0] }}"
-            mode: '0755'
-          loop: "{{ users_list.stdout_lines }}"
-          when: users_list.stdout_lines | length > 0
+    - name: Creer le raccourci Brave sur le bureau de chaque utilisateur
+      file:
+        path: "{{ item.split(':')[1] }}/Desktop/brave-browser.desktop"
+        state: touch
+        owner: "{{ item.split(':')[0] }}"
+        group: "{{ item.split(':')[0] }}"
+        mode: '0755'
+      loop: "{{ users_list.stdout_lines }}"
+      when: users_list.stdout_lines | length > 0
+
+    - name: Remplir le fichier .desktop avec le contenu correct
+      lineinfile:
+        path: "{{ item.split(':')[1] }}/Desktop/brave-browser.desktop"
+        line: "{{ line }}"
+        create: yes
+        owner: "{{ item.split(':')[0] }}"
+        group: "{{ item.split(':')[0] }}"
+        mode: '0755'
+      loop: "{{ users_list.stdout_lines }}"
+      when: users_list.stdout_lines | length > 0
+      vars:
+        lines:
+          - '[Desktop Entry]'
+          - 'Version=1.0'
+          - 'Type=Application'
+          - 'Name=Brave Browser'
+          - 'Comment=Accedez a Internet avec Brave'
+          - 'Exec=/usr/bin/brave-browser %U'
+          - 'Icon=brave-browser'
+          - 'Terminal=false'
+          - 'Categories=Network;WebBrowser;'
+          - 'MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;'
+          - 'StartupNotify=true'
+      with_items: "{{ lines }}"
+
+    - name: Copier le fichier .desktop officiel de Brave vers le bureau
+      copy:
+        src: /usr/share/applications/brave-browser.desktop
+        dest: "{{ item.split(':')[1] }}/Desktop/brave-browser.desktop"
+        remote_src: yes
+        owner: "{{ item.split(':')[0] }}"
+        group: "{{ item.split(':')[0] }}"
+        mode: '0755'
+      loop: "{{ users_list.stdout_lines }}"
+      when: users_list.stdout_lines | length > 0
+      ignore_errors: yes
