@@ -6,31 +6,29 @@
 
     # 1. Recuperation des informations des utilisateurs locaux et LDAP via getent
     - name: Recuperer les utilisateurs du systeme
-      getent:
+      ansible.builtin.getent:
         database: passwd
 
-    # 2. Filtrage robuste des utilisateurs humains (UID >= 1000, shell actif)
+    # 2. Filtrage des utilisateurs sans l'extension 'do' de Jinja
     - name: Filtrer les utilisateurs reels (UID >= 1000)
-      set_fact:
+      ansible.builtin.set_fact:
         real_users: >-
           {% set users = [] %}
           {% for username, user_details in ansible_facts.getent_passwd.items() %}
-            {# Gestion de la structure de liste plate ou de liste de listes de getent #}
             {% set details = user_details[0] if user_details[0] is iterable and user_details[0] is not string else user_details %}
-            {# Filtrage par UID et par Shell valide #}
             {% if details[1] | int >= 1000 and details[5] in ['/bin/bash', '/bin/sh'] and username != 'nobody' %}
-              {% do users.append({'name': username, 'home': details[4]}) %}
+              {% set _ = users.append({'name': username, 'home': details[4], 'gid': details[2]}) %}
             {% endif %}
           {% endfor %}
           {{ users }}
 
     # 3. Creation des repertoires Bureau / Desktop si necessaire
     - name: Assurer l'existence du dossier Bureau (FR et EN)
-      file:
+      ansible.builtin.file:
         path: "{{ item.0.home }}/{{ item.1 }}"
         state: directory
         owner: "{{ item.0.name }}"
-        group: "{{ item.0.name }}"
+        group: "{{ item.0.gid }}"
         mode: '0755'
       with_nested:
         - "{{ real_users }}"
@@ -39,13 +37,24 @@
 
     # 4. Copie du raccourci de Brave dans les deux dossiers (FR et EN)
     - name: Copier le raccourci Brave Browser
-      copy:
-        src: /usr/share/applications/brave-browser.desktop
+      ansible.builtin.copy:
         dest: "{{ item.0.home }}/{{ item.1 }}/brave-browser.desktop"
-        remote_src: yes
         owner: "{{ item.0.name }}"
-        group: "{{ item.0.name }}"
+        group: "{{ item.0.gid }}"
         mode: '0755'
+        content: |
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Brave Web Browser
+          Comment=Acces a internet avec Brave
+          Exec=/usr/bin/brave-browser %U
+          Icon=brave-browser
+          Categories=Network;WebBrowser;
+          MimeType=text/html;text/xml;application/xhtml+xml;application/vnd.mozilla.xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+          StartupNotify=true
+          StartupWMClass=brave-browser
+          Terminal=false
       with_nested:
         - "{{ real_users }}"
         - ["Desktop", "Bureau"]
