@@ -41,7 +41,9 @@
         group: "{{ item.key }}"
         mode: '0755'
       loop: "{{ getent_passwd | dict2items }}"
-      when: item.value[2] | int >= 1000
+      when: 
+        - item.value | length >= 3
+        - item.value[2] | int >= 1000
       ignore_errors: yes
 
     - name: Creer le raccourci Brave sur le Desktop de chaque utilisateur
@@ -64,5 +66,7 @@
           StartupWMClass=brave-browser
           Terminal=false
       loop: "{{ getent_passwd | dict2items }}"
-      when: item.value[2] | int >= 1000
+      when: 
+        - item.value | length >= 3
+        - item.value[2] | int >= 1000
       ignore_errors: yes
