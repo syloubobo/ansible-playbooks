@@ -1,63 +1,56 @@
 ---
-- name: Deploiement du raccourci Brave sur les Bureaux des utilisateurs
+- name: Deploiement automatise du navigateur Brave avec raccourci Desktop
   hosts: all
-  become: yes
+  become: true
+
   tasks:
+    - name: Installation des dependances requises (curl)
+      apt:
+        name: curl
+        state: present
+        update_cache: yes
 
-    # 1. On lise les dossiers presents dans /home
-    - name: Lister les dossiers personnels dans /home
-      ansible.builtin.find:
-        paths: /home
-        file_type: directory
-      register: found_home_dirs
+    - name: Telechargement et ajout de la cle GPG officielle de Brave
+      get_url:
+        url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+        dest: /usr/share/keyrings/brave-browser-archive-keyring.gpg
+        mode: '0644'
 
-    # 2. On cree le dossier Bureau (version FR) - Sans forcer le groupe pour eviter les bugs
-    - name: Assurer l'existence du dossier Bureau (FR)
-      ansible.builtin.file:
-        path: "{{ item.path }}/Bureau"
+    - name: Ajout du depot officiel Brave Browser dans les sources APT
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main"
+        state: present
+        filename: brave-browser-release
+
+    - name: Mise a jour du cache et installation du paquet brave-browser
+      apt:
+        name: brave-browser
+        state: latest
+        update_cache: yes
+
+    - name: Obtenir la liste de tous les utilisateurs
+      getent:
+        database: passwd
+      changed_when: false
+
+    - name: Creer le dossier Desktop pour chaque utilisateur non-systeme
+      file:
+        path: "/home/{{ item.key }}/Desktop"
         state: directory
-        owner: "{{ item.pw_name }}"
+        owner: "{{ item.key }}"
+        group: "{{ item.key }}"
         mode: '0755'
-      loop: "{{ found_home_dirs.files }}"
-      when: item.pw_name not in ['root', 'nobody']
-
-    # 3. On copie le raccourci Brave dans le Bureau FR
-    - name: Copier le raccourci Brave Browser (FR)
-      ansible.builtin.copy:
-        dest: "{{ item.path }}/Bureau/brave-browser.desktop"
-        owner: "{{ item.pw_name }}"
-        mode: '0755'
-        content: |
-          [Desktop Entry]
-          Version=1.0
-          Type=Application
-          Name=Brave Web Browser
-          Comment=Acces a internet avec Brave
-          Exec=/usr/bin/brave-browser %U
-          Icon=brave-browser
-          Categories=Network;WebBrowser;
-          MimeType=text/html;text/xml;application/xhtml+xml;application/vnd.mozilla.xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
-          StartupNotify=true
-          StartupWMClass=brave-browser
-          Terminal=false
-      loop: "{{ found_home_dirs.files }}"
-      when: item.pw_name not in ['root', 'nobody']
+      loop: "{{ getent_passwd | dict2items }}"
+      when: 
+        - item.value | length >= 3
+        - item.value[2] | int >= 1000
       ignore_errors: yes
 
-    # 4. On fait la meme chose pour le dossier Desktop (version EN)
-    - name: Assurer l'existence du dossier Desktop (EN)
-      ansible.builtin.file:
-        path: "{{ item.path }}/Desktop"
-        state: directory
-        owner: "{{ item.pw_name }}"
-        mode: '0755'
-      loop: "{{ found_home_dirs.files }}"
-      when: item.pw_name not in ['root', 'nobody']
-
-    - name: Copier le raccourci Brave Browser (EN)
-      ansible.builtin.copy:
-        dest: "{{ item.path }}/Desktop/brave-browser.desktop"
-        owner: "{{ item.pw_name }}"
+    - name: Creer le raccourci Brave sur le Desktop de chaque utilisateur
+      copy:
+        dest: "/home/{{ item.key }}/Desktop/brave-browser.desktop"
+        owner: "{{ item.key }}"
+        group: "{{ item.key }}"
         mode: '0755'
         content: |
           [Desktop Entry]
@@ -72,6 +65,8 @@
           StartupNotify=true
           StartupWMClass=brave-browser
           Terminal=false
-      loop: "{{ found_home_dirs.files }}"
-      when: item.pw_name not in ['root', 'nobody']
+      loop: "{{ getent_passwd | dict2items }}"
+      when: 
+        - item.value | length >= 3
+        - item.value[2] | int >= 1000
       ignore_errors: yes
