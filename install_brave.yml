@@ -33,46 +33,35 @@
         database: passwd
       changed_when: false
 
-    - name: Trouver les utilisateurs avec UID >= 1000
-      set_fact:
-        regular_users: "{{ getent_passwd | dict2items | map(attribute='value') | map('regex_search', '^[^:]+') | select('string') | list | map('regex_replace', '^([^:]+).*$', '\\1') }}"
+    - name: Creer le dossier Desktop et raccourci Brave pour chaque utilisateur
+      block:
+        - name: Creer le dossier Desktop
+          file:
+            path: "/home/{{ item.key }}/Desktop"
+            state: directory
+            owner: "{{ item.key }}"
+            group: "{{ item.key }}"
+            mode: '0755'
+          when: item.value[2] | int >= 1000
 
-    - name: Filtrer les utilisateurs reguliers (UID >= 1000)
-      set_fact:
-        regular_users: "{{ query('dict', getent_passwd) | selectattr('2|int', '>=', 1000) | map(attribute='0') | list }}"
-
-    - name: Debug - Afficher les utilisateurs reguliers
-      debug:
-        msg: "Utilisateurs reguliers detectes: {{ regular_users }}"
-
-    - name: Creer le dossier Desktop pour chaque utilisateur non-systeme
-      file:
-        path: "/home/{{ item }}/Desktop"
-        state: directory
-        owner: "{{ item }}"
-        group: "{{ item }}"
-        mode: '0755'
-      loop: "{{ regular_users }}"
-      when: regular_users | length > 0
-
-    - name: Creer le raccourci Brave sur le Desktop de chaque utilisateur
-      copy:
-        dest: "/home/{{ item }}/Desktop/brave-browser.desktop"
-        owner: "{{ item }}"
-        group: "{{ item }}"
-        mode: '0755'
-        content: |
-          [Desktop Entry]
-          Version=1.0
-          Type=Application
-          Name=Brave Web Browser
-          Comment=Acces a internet avec Brave
-          Exec=/usr/bin/brave-browser %U
-          Icon=brave-browser
-          Categories=Network;WebBrowser;
-          MimeType=text/html;text/xml;application/xhtml+xml;application/vnd.mozilla.xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
-          StartupNotify=true
-          StartupWMClass=brave-browser
-          Terminal=false
-      loop: "{{ regular_users }}"
-      when: regular_users | length > 0
+        - name: Creer le raccourci Brave sur le Desktop
+          copy:
+            dest: "/home/{{ item.key }}/Desktop/brave-browser.desktop"
+            owner: "{{ item.key }}"
+            group: "{{ item.key }}"
+            mode: '0755'
+            content: |
+              [Desktop Entry]
+              Version=1.0
+              Type=Application
+              Name=Brave Web Browser
+              Comment=Acces a internet avec Brave
+              Exec=/usr/bin/brave-browser %U
+              Icon=brave-browser
+              Categories=Network;WebBrowser;
+              MimeType=text/html;text/xml;application/xhtml+xml;application/vnd.mozilla.xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+              StartupNotify=true
+              StartupWMClass=brave-browser
+              Terminal=false
+          when: item.value[2] | int >= 1000
+      loop: "{{ getent_passwd | dict2items }}"
