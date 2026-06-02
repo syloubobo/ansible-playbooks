@@ -1,5 +1,5 @@
 ---
-- name: Deploiement automatise du navigateur Brave
+- name: Deploiement automatise du navigateur Brave avec raccourci Desktop
   hosts: all
   become: true
 
@@ -31,28 +31,39 @@
     - name: Obtenir la liste de tous les utilisateurs
       getent:
         database: passwd
-        key: "*"
       changed_when: false
-      register: users_data
 
-    - name: Creer le dossier Desktop pour chaque utilisateur
+    - name: Creer le dossier Desktop pour chaque utilisateur non-systeme
       file:
         path: "/home/{{ item }}/Desktop"
         state: directory
         owner: "{{ item }}"
         group: "{{ item }}"
         mode: '0755'
-      loop: "{{ users_data.ansible_facts.getent_passwd.keys() | list }}"
-      when: users_data.ansible_facts.getent_passwd[item][4] | int >= 1000
+      loop: "{{ getent_passwd.keys() | list }}"
+      when: 
+        - getent_passwd[item][2] | int >= 1000
+        - item != 'root'
 
-    - name: Copier le fichier .desktop de Brave vers le bureau de chaque utilisateur
+    - name: Creer le raccourci Brave sur le Desktop de chaque utilisateur
       copy:
-        src: /usr/share/applications/brave-browser.desktop
         dest: "/home/{{ item }}/Desktop/brave-browser.desktop"
-        remote_src: yes
         owner: "{{ item }}"
         group: "{{ item }}"
         mode: '0755'
-      loop: "{{ users_data.ansible_facts.getent_passwd.keys() | list }}"
-      when: users_data.ansible_facts.getent_passwd[item][4] | int >= 1000
-      ignore_errors: yes
+        content: |
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Brave Web Browser
+          Comment=Acces a internet avec Brave
+          Exec=/usr/bin/brave-browser %U
+          Icon=brave-browser
+          Categories=Network;WebBrowser;
+          MimeType=text/html;text/xml;application/xhtml+xml;application/vnd.mozilla.xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+          StartupNotify=true
+          StartupWMClass=brave-browser
+      loop: "{{ getent_passwd.keys() | list }}"
+      when:
+        - getent_passwd[item][2] | int >= 1000
+        - item != 'root'
