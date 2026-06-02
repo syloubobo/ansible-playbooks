@@ -4,20 +4,28 @@
   become: yes
   tasks:
 
-    # ==========================================
-    # PARTIE 1 : POUR LES FUTURS UTILISATEURS (Toutes machines, ex: .105 et .106)
-    # ==========================================
+    # 1. On lise les dossiers presents dans /home
+    - name: Lister les dossiers personnels dans /home
+      ansible.builtin.find:
+        paths: /home
+        file_type: directory
+      register: found_home_dirs
 
-    # On prépare le Bureau par défaut dans le dossier "Squelette" de Linux
-    - name: Creer le dossier Bureau dans le squelette global (/etc/skel)
+    # 2. On cree le dossier Bureau (version FR) - Sans forcer le groupe pour eviter les bugs
+    - name: Assurer l'existence du dossier Bureau (FR)
       ansible.builtin.file:
-        path: "/etc/skel/Bureau"
+        path: "{{ item.path }}/Bureau"
         state: directory
+        owner: "{{ item.pw_name }}"
         mode: '0755'
+      loop: "{{ found_home_dirs.files }}"
+      when: item.pw_name not in ['root', 'nobody']
 
-    - name: Copier le raccourci Brave dans le squelette global (/etc/skel)
+    # 3. On copie le raccourci Brave dans le Bureau FR
+    - name: Copier le raccourci Brave Browser (FR)
       ansible.builtin.copy:
-        dest: "/etc/skel/Bureau/brave-browser.desktop"
+        dest: "{{ item.path }}/Bureau/brave-browser.desktop"
+        owner: "{{ item.pw_name }}"
         mode: '0755'
         content: |
           [Desktop Entry]
@@ -32,29 +40,23 @@
           StartupNotify=true
           StartupWMClass=brave-browser
           Terminal=false
+      loop: "{{ found_home_dirs.files }}"
+      when: item.pw_name not in ['root', 'nobody']
+      ignore_errors: yes
 
-    # ==========================================
-    # PARTIE 2 : POUR LES UTILISATEURS DEJA EXISTANTS (ex: .103 et .104)
-    # ==========================================
-
-    - name: Lister les dossiers personnels existants dans /home
-      ansible.builtin.find:
-        paths: /home
-        file_type: directory
-      register: found_home_dirs
-
-    - name: Assurer l'existence du dossier Bureau (FR) pour les profils existants
+    # 4. On fait la meme chose pour le dossier Desktop (version EN)
+    - name: Assurer l'existence du dossier Desktop (EN)
       ansible.builtin.file:
-        path: "{{ item.path }}/Bureau"
+        path: "{{ item.path }}/Desktop"
         state: directory
         owner: "{{ item.pw_name }}"
         mode: '0755'
       loop: "{{ found_home_dirs.files }}"
       when: item.pw_name not in ['root', 'nobody']
 
-    - name: Copier le raccourci Brave Browser (FR) pour les profils existants
+    - name: Copier le raccourci Brave Browser (EN)
       ansible.builtin.copy:
-        dest: "{{ item.path }}/Bureau/brave-browser.desktop"
+        dest: "{{ item.path }}/Desktop/brave-browser.desktop"
         owner: "{{ item.pw_name }}"
         mode: '0755'
         content: |
