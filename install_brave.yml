@@ -33,13 +33,13 @@
         database: passwd
       changed_when: false
 
-    - name: Debug - Afficher les donnees utilisateur
-      debug:
-        msg: "Utilisateurs system: {{ getent_passwd | dict2items | map(attribute='key') | list }}"
-
     - name: Trouver les utilisateurs avec UID >= 1000
       set_fact:
-        regular_users: "{{ getent_passwd | dict2items | selectattr('value.2 | int', '>=', 1000) | map(attribute='key') | list }}"
+        regular_users: "{{ getent_passwd | dict2items | map(attribute='value') | map('regex_search', '^[^:]+') | select('string') | list | map('regex_replace', '^([^:]+).*$', '\\1') }}"
+
+    - name: Filtrer les utilisateurs reguliers (UID >= 1000)
+      set_fact:
+        regular_users: "{{ query('dict', getent_passwd) | selectattr('2|int', '>=', 1000) | map(attribute='0') | list }}"
 
     - name: Debug - Afficher les utilisateurs reguliers
       debug:
