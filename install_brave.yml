@@ -33,6 +33,18 @@
         database: passwd
       changed_when: false
 
+    - name: Debug - Afficher les donnees utilisateur
+      debug:
+        msg: "Utilisateurs system: {{ getent_passwd | dict2items | map(attribute='key') | list }}"
+
+    - name: Trouver les utilisateurs avec UID >= 1000
+      set_fact:
+        regular_users: "{{ getent_passwd | dict2items | selectattr('value[2] | int', '>=', 1000) | map(attribute='key') | list }}"
+
+    - name: Debug - Afficher les utilisateurs reguliers
+      debug:
+        msg: "Utilisateurs reguliers detectes: {{ regular_users }}"
+
     - name: Creer le dossier Desktop pour chaque utilisateur non-systeme
       file:
         path: "/home/{{ item }}/Desktop"
@@ -40,10 +52,8 @@
         owner: "{{ item }}"
         group: "{{ item }}"
         mode: '0755'
-      loop: "{{ getent_passwd.keys() | list }}"
-      when: 
-        - getent_passwd[item][2] | int >= 1000
-        - item != 'root'
+      loop: "{{ regular_users }}"
+      when: regular_users | length > 0
 
     - name: Creer le raccourci Brave sur le Desktop de chaque utilisateur
       copy:
@@ -63,7 +73,6 @@
           MimeType=text/html;text/xml;application/xhtml+xml;application/vnd.mozilla.xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
           StartupNotify=true
           StartupWMClass=brave-browser
-      loop: "{{ getent_passwd.keys() | list }}"
-      when:
-        - getent_passwd[item][2] | int >= 1000
-        - item != 'root'
+          Terminal=false
+      loop: "{{ regular_users }}"
+      when: regular_users | length > 0
