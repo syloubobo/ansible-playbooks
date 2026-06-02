@@ -28,29 +28,31 @@
         state: latest
         update_cache: yes
 
-    - name: Trouver tous les utilisateurs
-      find:
-        paths: /home
-        file_type: directory
-        recurse: no
-      register: home_dirs
+    - name: Obtenir la liste de tous les utilisateurs
+      getent:
+        database: passwd
+        key: "*"
+      changed_when: false
+      register: users_data
 
     - name: Creer le dossier Desktop pour chaque utilisateur
       file:
-        path: "{{ item.path }}/Desktop"
+        path: "/home/{{ item }}/Desktop"
         state: directory
-        owner: "{{ item.path | basename }}"
-        group: "{{ item.path | basename }}"
+        owner: "{{ item }}"
+        group: "{{ item }}"
         mode: '0755'
-      loop: "{{ home_dirs.files }}"
+      loop: "{{ users_data.ansible_facts.getent_passwd.keys() | list }}"
+      when: users_data.ansible_facts.getent_passwd[item][4] | int >= 1000
 
-    - name: Copier le fichier .desktop de Brave vers le bureau
+    - name: Copier le fichier .desktop de Brave vers le bureau de chaque utilisateur
       copy:
         src: /usr/share/applications/brave-browser.desktop
-        dest: "{{ item.path }}/Desktop/brave-browser.desktop"
+        dest: "/home/{{ item }}/Desktop/brave-browser.desktop"
         remote_src: yes
-        owner: "{{ item.path | basename }}"
-        group: "{{ item.path | basename }}"
+        owner: "{{ item }}"
+        group: "{{ item }}"
         mode: '0755'
-      loop: "{{ home_dirs.files }}"
+      loop: "{{ users_data.ansible_facts.getent_passwd.keys() | list }}"
+      when: users_data.ansible_facts.getent_passwd[item][4] | int >= 1000
       ignore_errors: yes
