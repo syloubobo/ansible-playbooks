@@ -4,43 +4,31 @@
   become: yes
   tasks:
 
-    # 1. Recuperation des informations des utilisateurs locaux et LDAP via getent
-    - name: Recuperer les utilisateurs du systeme
-      ansible.builtin.getent:
-        database: passwd
+    # 1. On liste directement les dossiers présents dans /home
+    - name: Lister les dossiers personnels dans /home
+      ansible.builtin.find:
+        paths: /home
+        file_type: directory
+      register: found_home_dirs
 
-    # 2. Filtrage des utilisateurs sans l'extension 'do' de Jinja
-    - name: Filtrer les utilisateurs reels (UID >= 1000)
-      ansible.builtin.set_fact:
-        real_users: >-
-          {% set users = [] %}
-          {% for username, user_details in ansible_facts.getent_passwd.items() %}
-            {% set details = user_details[0] if user_details[0] is iterable and user_details[0] is not string else user_details %}
-            {% if details[1] | int >= 1000 and details[5] in ['/bin/bash', '/bin/sh'] and username != 'nobody' %}
-              {% set _ = users.append({'name': username, 'home': details[4], 'gid': details[2]}) %}
-            {% endif %}
-          {% endfor %}
-          {{ users }}
-
-    # 3. Creation des repertoires Bureau / Desktop si necessaire
-    - name: Assurer l'existence du dossier Bureau (FR et EN)
+    # 2. On cree le dossier Bureau (version FR) pour chaque utilisateur trouvé
+    - name: Assurer l'existence du dossier Bureau (FR)
       ansible.builtin.file:
-        path: "{{ item.0.home }}/{{ item.1 }}"
+        path: "{{ item.path }}/Bureau"
         state: directory
-        owner: "{{ item.0.name }}"
-        group: "{{ item.0.gid }}"
+        owner: "{{ item.pw_name }}"
+        group: "{{ item.pw_name }}"
         mode: '0755'
-      with_nested:
-        - "{{ real_users }}"
-        - ["Desktop", "Bureau"]
-      when: item.0.home is directory
+      loop: "{{ found_home_dirs.files }}"
+      # On ignore le dossier 'lost+found' s'il existe
+      when: item.pw_name != 'root'
 
-    # 4. Copie du raccourci de Brave dans les deux dossiers (FR et EN)
-    - name: Copier le raccourci Brave Browser
+    # 3. On copie le raccourci Brave directement dans le Bureau FR
+    - name: Copier le raccourci Brave Browser (FR)
       ansible.builtin.copy:
-        dest: "{{ item.0.home }}/{{ item.1 }}/brave-browser.desktop"
-        owner: "{{ item.0.name }}"
-        group: "{{ item.0.gid }}"
+        dest: "{{ item.path }}/Bureau/brave-browser.desktop"
+        owner: "{{ item.pw_name }}"
+        group: "{{ item.pw_name }}"
         mode: '0755'
         content: |
           [Desktop Entry]
@@ -55,8 +43,40 @@
           StartupNotify=true
           StartupWMClass=brave-browser
           Terminal=false
-      with_nested:
-        - "{{ real_users }}"
-        - ["Desktop", "Bureau"]
-      when: item.0.home is directory
+      loop: "{{ found_home_dirs.files }}"
+      when: item.pw_name != 'root'
+      ignore_errors: yes
+
+    # 4. On fait la meme chose pour 'Desktop' au cas ou une machine est en Anglais
+    - name: Assurer l'existence du dossier Desktop (EN)
+      ansible.builtin.file:
+        path: "{{ item.path }}/Desktop"
+        state: directory
+        owner: "{{ item.pw_name }}"
+        group: "{{ item.pw_name }}"
+        mode: '0755'
+      loop: "{{ found_home_dirs.files }}"
+      when: item.pw_name != 'root'
+
+    - name: Copier le raccourci Brave Browser (EN)
+      ansible.builtin.copy:
+        dest: "{{ item.path }}/Desktop/brave-browser.desktop"
+        owner: "{{ item.pw_name }}"
+        group: "{{ item.pw_name }}"
+        mode: '0755'
+        content: |
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Brave Web Browser
+          Comment=Acces a internet avec Brave
+          Exec=/usr/bin/brave-browser %U
+          Icon=brave-browser
+          Categories=Network;WebBrowser;
+          MimeType=text/html;text/xml;application/xhtml+xml;application/vnd.mozilla.xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;
+          StartupNotify=true
+          StartupWMClass=brave-browser
+          Terminal=false
+      loop: "{{ found_home_dirs.files }}"
+      when: item.pw_name != 'root'
       ignore_errors: yes
