@@ -4,7 +4,7 @@
   become: yes
   tasks:
 
-    # 1. On liste directement les dossiers présents dans /home
+    # 1. On liste directement les dossiers physiques présents dans /home
     - name: Lister les dossiers personnels dans /home
       ansible.builtin.find:
         paths: /home
@@ -20,7 +20,6 @@
         group: "{{ item.pw_name }}"
         mode: '0755'
       loop: "{{ found_home_dirs.files }}"
-      # On ignore le dossier 'lost+found' s'il existe
       when: item.pw_name != 'root'
 
     # 3. On copie le raccourci Brave directement dans le Bureau FR
@@ -47,7 +46,7 @@
       when: item.pw_name != 'root'
       ignore_errors: yes
 
-    # 4. On fait la meme chose pour 'Desktop' au cas ou une machine est en Anglais
+    # 4. On fait la même chose pour 'Desktop' au cas où une session est en Anglais
     - name: Assurer l'existence du dossier Desktop (EN)
       ansible.builtin.file:
         path: "{{ item.path }}/Desktop"
