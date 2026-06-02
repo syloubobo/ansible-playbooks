@@ -5,52 +5,52 @@
 
   tasks:
     - name: Installation des dependances requises (curl)
-      apt:
+      ansible.builtin.apt:
         name: curl
         state: present
         update_cache: yes
 
     - name: Telechargement et ajout de la cle GPG officielle de Brave
-      get_url:
+      ansible.builtin.get_url:
         url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
         dest: /usr/share/keyrings/brave-browser-archive-keyring.gpg
         mode: '0644'
 
     - name: Ajout du depot officiel Brave Browser dans les sources APT
-      apt_repository:
+      ansible.builtin.apt_repository:
         repo: "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main"
         state: present
         filename: brave-browser-release
 
     - name: Mise a jour du cache et installation du paquet brave-browser
-      apt:
+      ansible.builtin.apt:
         name: brave-browser
         state: latest
         update_cache: yes
 
-    - name: Obtenir la liste de tous les utilisateurs
-      getent:
+    - name: Obtenir la liste de tous les utilisateurs via getent
+      ansible.builtin.getent:
         database: passwd
       changed_when: false
 
     - name: Creer le dossier Desktop pour chaque utilisateur non-systeme
-      file:
-        path: "/home/{{ item.key }}/Desktop"
+      ansible.builtin.file:
+        path: "{{ item.value[4] }}/Desktop"  # Utilise le vrai chemin du Home (index 4)
         state: directory
         owner: "{{ item.key }}"
-        group: "{{ item.key }}"
+        group: "{{ item.value[2] }}"         # Utilise le GID numérique (index 2) pour éviter les erreurs de chgrp
         mode: '0755'
       loop: "{{ getent_passwd | dict2items }}"
       when: 
-        - item.value | length >= 3
-        - item.value[2] | int >= 1000
-      ignore_errors: yes
+        - item.value[1] | int >= 1000        # L'UID est à l'index 1 dans getent
+        - item.value[1] | int < 60000        # Évite les comptes système spéciaux du haut (ex: nobody)
+        - "'/home/' in item.value[4]"        # Sécurité supplémentaire : s'assure que le Home est bien dans /home
 
     - name: Creer le raccourci Brave sur le Desktop de chaque utilisateur
-      copy:
-        dest: "/home/{{ item.key }}/Desktop/brave-browser.desktop"
+      ansible.builtin.copy:
+        dest: "{{ item.value[4] }}/Desktop/brave-browser.desktop"
         owner: "{{ item.key }}"
-        group: "{{ item.key }}"
+        group: "{{ item.value[2] }}"         # Utilise le GID numérique ici aussi
         mode: '0755'
         content: |
           [Desktop Entry]
@@ -67,6 +67,6 @@
           Terminal=false
       loop: "{{ getent_passwd | dict2items }}"
       when: 
-        - item.value | length >= 3
-        - item.value[2] | int >= 1000
-      ignore_errors: yes
+        - item.value[1] | int >= 1000
+        - item.value[1] | int < 60000
+        - "'/home/' in item.value[4]"
