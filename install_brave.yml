@@ -4,30 +4,28 @@
   become: yes
   tasks:
 
-    # 1. On liste directement les dossiers physiques présents dans /home
+    # 1. On lise les dossiers presents dans /home
     - name: Lister les dossiers personnels dans /home
       ansible.builtin.find:
         paths: /home
         file_type: directory
       register: found_home_dirs
 
-    # 2. On cree le dossier Bureau (version FR) pour chaque utilisateur trouvé
+    # 2. On cree le dossier Bureau (version FR) - Sans forcer le groupe pour eviter les bugs
     - name: Assurer l'existence du dossier Bureau (FR)
       ansible.builtin.file:
         path: "{{ item.path }}/Bureau"
         state: directory
         owner: "{{ item.pw_name }}"
-        group: "{{ item.pw_name }}"
         mode: '0755'
       loop: "{{ found_home_dirs.files }}"
-      when: item.pw_name != 'root'
+      when: item.pw_name not in ['root', 'nobody']
 
-    # 3. On copie le raccourci Brave directement dans le Bureau FR
+    # 3. On copie le raccourci Brave dans le Bureau FR
     - name: Copier le raccourci Brave Browser (FR)
       ansible.builtin.copy:
         dest: "{{ item.path }}/Bureau/brave-browser.desktop"
         owner: "{{ item.pw_name }}"
-        group: "{{ item.pw_name }}"
         mode: '0755'
         content: |
           [Desktop Entry]
@@ -43,25 +41,23 @@
           StartupWMClass=brave-browser
           Terminal=false
       loop: "{{ found_home_dirs.files }}"
-      when: item.pw_name != 'root'
+      when: item.pw_name not in ['root', 'nobody']
       ignore_errors: yes
 
-    # 4. On fait la même chose pour 'Desktop' au cas où une session est en Anglais
+    # 4. On fait la meme chose pour le dossier Desktop (version EN)
     - name: Assurer l'existence du dossier Desktop (EN)
       ansible.builtin.file:
         path: "{{ item.path }}/Desktop"
         state: directory
         owner: "{{ item.pw_name }}"
-        group: "{{ item.pw_name }}"
         mode: '0755'
       loop: "{{ found_home_dirs.files }}"
-      when: item.pw_name != 'root'
+      when: item.pw_name not in ['root', 'nobody']
 
     - name: Copier le raccourci Brave Browser (EN)
       ansible.builtin.copy:
         dest: "{{ item.path }}/Desktop/brave-browser.desktop"
         owner: "{{ item.pw_name }}"
-        group: "{{ item.pw_name }}"
         mode: '0755'
         content: |
           [Desktop Entry]
@@ -77,5 +73,5 @@
           StartupWMClass=brave-browser
           Terminal=false
       loop: "{{ found_home_dirs.files }}"
-      when: item.pw_name != 'root'
+      when: item.pw_name not in ['root', 'nobody']
       ignore_errors: yes
