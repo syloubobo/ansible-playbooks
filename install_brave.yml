@@ -39,7 +39,7 @@
 
     - name: Trouver les utilisateurs avec UID >= 1000
       set_fact:
-        regular_users: "{{ getent_passwd | dict2items | selectattr('value[2] | int', '>=', 1000) | map(attribute='key') | list }}"
+        regular_users: "{{ getent_passwd | dict2items | selectattr('value.2 | int', '>=', 1000) | map(attribute='key') | list }}"
 
     - name: Debug - Afficher les utilisateurs reguliers
       debug:
