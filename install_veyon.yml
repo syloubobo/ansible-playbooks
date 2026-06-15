@@ -1,0 +1,44 @@
+---
+- name: Installation et configuration de Veyon Client
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # Définissez ici le chemin local de votre clé publique générée sur le poste maître
+    local_public_key_path: "files/my_veyon_public_key.pem"
+    # Le nom du groupe de clés dans Veyon (par exemple: "teacher" ou "admin")
+    veyon_key_group: "teacher"
+
+  tasks:
+    - name: Mise à jour du cache apt
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Installation de Veyon Service (Client)
+      apt:
+        name: veyon-service
+        state: present
+
+    - name: Création du dossier pour la clé publique Veyon si inexistant
+      file:
+        path: "/etc/veyon/keys/public/{{ veyon_key_group }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copie de la clé publique d'authentification sur les clients
+      copy:
+        src: "{{ local_public_key_path }}"
+        dest: "/etc/veyon/keys/public/{{ veyon_key_group }}/key"
+        owner: root
+        group: root
+        mode: '0444'
+
+    - name: Redémarrage du service Veyon pour appliquer la configuration
+      systemd:
+        name: veyon
+        state: restarted
+        enabled: yes
