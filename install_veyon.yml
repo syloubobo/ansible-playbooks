@@ -1,23 +1,37 @@
 ---
-- name: Réinstallation propre de Veyon (Version Récente)
+- name: Nettoyage complet et réinstallation standard de Veyon
   hosts: all
   become: yes
   gather_facts: no
 
   tasks:
-    - name: Installation du paquet prérequis pour les dépôts tiers
+    - name: Nettoyage forcé de tous les paquets Veyon existants ou cassés
       apt:
-        name: software-properties-common
-        state: present
+        name:
+          - veyon
+          - veyon-service
+          - veyon-plugins
+          - libveyon-core
+        state: absent
+        purge: yes
+      ignore_errors: yes # Permet de continuer si un paquet n'était pas là
 
-    - name: Ajout du dépôt officiel PPA de Veyon
+    - name: Suppression du PPA Veyon incompatible (Zena/Ubuntu)
       apt_repository:
         repo: 'ppa:veyon/stable'
-        state: present
+        state: absent
+        update_cache: yes
+      ignore_errors: yes
+
+    - name: Correction des dépendances cassées éventuelles (dpkg --configure)
+      command: dpkg --configure -a
+      changed_when: false
+
+    - name: Mise à jour finale du cache APT
+      apt:
         update_cache: yes
 
-    - name: Installation complète de Veyon
+    - name: Installation propre de Veyon (Version stable de la distribution)
       apt:
         name: veyon
-        state: latest
-        update_cache: yes
+        state: present
