@@ -1,24 +1,33 @@
 ---
-- name: Installation adaptative de Veyon Client
+- name: Activation et démarrage de Veyon Client (.103 et .105)
   hosts: all
   become: yes
   gather_facts: no
 
   tasks:
-    - name: Mise à jour du cache APT
+    - name: Installation du configurateur (optionnel mais recommandé pour les tests)
       apt:
-        update_cache: yes
-        cache_valid_time: 3600
+        name: veyon-configurator
+        state: present
+      ignore_errors: yes # Ne bloque pas si le paquet est fusionné ailleurs
 
-    - name: Tentative d'installation du paquet Veyon global
-      apt:
+    - name: Forcer le démarrage et l'activation du service Veyon
+      systemd:
         name: veyon
-        state: present
-      register: install_veyon_global
-      ignore_errors: yes # Si le paquet n'existe pas (comme sur .103/.105), on ne bloque pas le script
+        state: started
+        enabled: yes
+      ignore_errors: yes
 
-    - name: Installation de Veyon-Service (Solution de repli si veyon n'existe pas)
-      apt:
+    - name: Tentative alternative si le service s'appelle veyon-service
+      systemd:
         name: veyon-service
-        state: present
-      when: install_veyon_global.failed # S'exécute uniquement sur les PC où la première tâche a échoué
+        state: started
+        enabled: yes
+      ignore_errors: yes
+
+    - name: Ouverture du pare-feu local (UFW) pour Veyon (Port 11100)
+      ufw:
+        rule: allow
+        port: '11100'
+        proto: tcp
+      ignore_errors: yes
