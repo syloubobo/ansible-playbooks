@@ -1,24 +1,14 @@
 ---
-- name: Installation brute de Veyon Client
+- name: Alignement complet Veyon sur Linux Mint
   hosts: all
   become: yes
   gather_facts: no
 
   tasks:
-    - name: Mise à jour du cache APT
+    - name: Installation du configurateur graphique et de ses dépendances
       apt:
+        name:
+          - veyon-service
+          - veyon-configurator
+        state: present
         update_cache: yes
-        cache_valid_time: 3600
-
-    - name: Tentative d'installation du paquet veyon global (Pour .104, .106, .155)
-      apt:
-        name: veyon
-        state: present
-      register: install_veyon_global
-      ignore_errors: yes
-
-    - name: Installation de veyon-service (Pour .103, .105 s'il manque des dépendances)
-      apt:
-        name: veyon-service
-        state: present
-      when: install_veyon_global.failed
