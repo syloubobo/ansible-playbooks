@@ -1,14 +1,8 @@
 ---
-- name: Installation et configuration de Veyon Client
+- name: Installation brute de Veyon Client
   hosts: all
   become: yes
-  gather_facts: yes
-
-  vars:
-    # Mettez juste le nom du fichier si le fichier .pem se trouve 
-    # dans un dossier nommé 'files' juste à côté de ce playbook.
-    local_public_key_name: "my_veyon_public_key.pem"
-    veyon_key_group: "teacher"
+  gather_facts: no # Désactivé pour accélérer l'exécution
 
   tasks:
     - name: Mise à jour du cache apt
@@ -16,36 +10,13 @@
         update_cache: yes
         cache_valid_time: 3600
 
-    # ÉTAPE DE NETTOYAGE : Supprime le paquet global "veyon" s'il bloque
-    - name: Suppression de l'ancien paquet veyon conflictuel si présent
+    - name: Suppression de l'ancien paquet veyon si présent (anti-conflit)
       apt:
         name: veyon
         state: absent
         purge: yes
 
-    - name: Installation de Veyon Service (Client)
+    - name: Installation de Veyon Service
       apt:
         name: veyon-service
         state: present
-
-    - name: Création du dossier pour la clé publique Veyon si inexistant
-      file:
-        path: "/etc/veyon/keys/public/{{ veyon_key_group }}"
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-
-    - name: Copie de la clé publique d'authentification sur les clients
-      copy:
-        src: "{{ local_public_key_name }}" # Ansible cherche dans 'files/{{ local_public_key_name }}' par défaut
-        dest: "/etc/veyon/keys/public/{{ veyon_key_group }}/key"
-        owner: root
-        group: root
-        mode: '0444'
-
-    - name: Redémarrage du service Veyon pour appliquer la configuration
-      systemd:
-        name: veyon
-        state: restarted
-        enabled: yes
