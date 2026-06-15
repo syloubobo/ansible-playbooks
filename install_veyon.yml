@@ -1,37 +1,24 @@
 ---
-- name: Nettoyage complet et réinstallation standard de Veyon
+- name: Installation adaptative de Veyon Client
   hosts: all
   become: yes
   gather_facts: no
 
   tasks:
-    - name: Nettoyage forcé de tous les paquets Veyon existants ou cassés
-      apt:
-        name:
-          - veyon
-          - veyon-service
-          - veyon-plugins
-          - libveyon-core
-        state: absent
-        purge: yes
-      ignore_errors: yes # Permet de continuer si un paquet n'était pas là
-
-    - name: Suppression du PPA Veyon incompatible (Zena/Ubuntu)
-      apt_repository:
-        repo: 'ppa:veyon/stable'
-        state: absent
-        update_cache: yes
-      ignore_errors: yes
-
-    - name: Correction des dépendances cassées éventuelles (dpkg --configure)
-      command: dpkg --configure -a
-      changed_when: false
-
-    - name: Mise à jour finale du cache APT
+    - name: Mise à jour du cache APT
       apt:
         update_cache: yes
+        cache_valid_time: 3600
 
-    - name: Installation propre de Veyon (Version stable de la distribution)
+    - name: Tentative d'installation du paquet Veyon global
       apt:
         name: veyon
         state: present
+      register: install_veyon_global
+      ignore_errors: yes # Si le paquet n'existe pas (comme sur .103/.105), on ne bloque pas le script
+
+    - name: Installation de Veyon-Service (Solution de repli si veyon n'existe pas)
+      apt:
+        name: veyon-service
+        state: present
+      when: install_veyon_global.failed # S'exécute uniquement sur les PC où la première tâche a échoué
