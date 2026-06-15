@@ -1,33 +1,20 @@
 ---
-- name: Activation et démarrage de Veyon Client (.103 et .105)
+- name: Forcer le démarrage de Veyon (.103 et .105)
   hosts: all
   become: yes
   gather_facts: no
 
   tasks:
-    - name: Installation du configurateur (optionnel mais recommandé pour les tests)
-      apt:
-        name: veyon-configurator
-        state: present
-      ignore_errors: yes # Ne bloque pas si le paquet est fusionné ailleurs
-
-    - name: Forcer le démarrage et l'activation du service Veyon
+    - name: Activer et démarrer le service veyon
       systemd:
         name: veyon
         state: started
         enabled: yes
       ignore_errors: yes
 
-    - name: Tentative alternative si le service s'appelle veyon-service
+    - name: Activer et démarrer le service (nom alternatif veyon-service)
       systemd:
         name: veyon-service
         state: started
         enabled: yes
-      ignore_errors: yes
-
-    - name: Ouverture du pare-feu local (UFW) pour Veyon (Port 11100)
-      ufw:
-        rule: allow
-        port: '11100'
-        proto: tcp
       ignore_errors: yes
