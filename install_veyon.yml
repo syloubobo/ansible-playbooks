@@ -5,9 +5,9 @@
   gather_facts: yes
 
   vars:
-    # Définissez ici le chemin local de votre clé publique générée sur le poste maître
-    local_public_key_path: "files/my_veyon_public_key.pem"
-    # Le nom du groupe de clés dans Veyon (par exemple: "teacher" ou "admin")
+    # Mettez juste le nom du fichier si le fichier .pem se trouve 
+    # dans un dossier nommé 'files' juste à côté de ce playbook.
+    local_public_key_name: "my_veyon_public_key.pem"
     veyon_key_group: "teacher"
 
   tasks:
@@ -15,6 +15,13 @@
       apt:
         update_cache: yes
         cache_valid_time: 3600
+
+    # ÉTAPE DE NETTOYAGE : Supprime le paquet global "veyon" s'il bloque
+    - name: Suppression de l'ancien paquet veyon conflictuel si présent
+      apt:
+        name: veyon
+        state: absent
+        purge: yes
 
     - name: Installation de Veyon Service (Client)
       apt:
@@ -31,7 +38,7 @@
 
     - name: Copie de la clé publique d'authentification sur les clients
       copy:
-        src: "{{ local_public_key_path }}"
+        src: "{{ local_public_key_name }}" # Ansible cherche dans 'files/{{ local_public_key_name }}' par défaut
         dest: "/etc/veyon/keys/public/{{ veyon_key_group }}/key"
         owner: root
         group: root
