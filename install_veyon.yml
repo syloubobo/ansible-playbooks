@@ -1,22 +1,23 @@
 ---
-- name: Installation brute de Veyon Client
+- name: Réinstallation propre de Veyon (Version Récente)
   hosts: all
   become: yes
-  gather_facts: no # Désactivé pour accélérer l'exécution
+  gather_facts: no
 
   tasks:
-    - name: Mise à jour du cache apt
+    - name: Installation du paquet prérequis pour les dépôts tiers
       apt:
-        update_cache: yes
-        cache_valid_time: 3600
+        name: software-properties-common
+        state: present
 
-    - name: Suppression de l'ancien paquet veyon si présent (anti-conflit)
+    - name: Ajout du dépôt officiel PPA de Veyon
+      apt_repository:
+        repo: 'ppa:veyon/stable'
+        state: present
+        update_cache: yes
+
+    - name: Installation complète de Veyon
       apt:
         name: veyon
-        state: absent
-        purge: yes
-
-    - name: Installation de Veyon Service
-      apt:
-        name: veyon-service
-        state: present
+        state: latest
+        update_cache: yes
